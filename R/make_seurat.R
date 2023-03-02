@@ -13,33 +13,44 @@
 #' @examples
 #' my_obj <- make_seurat("filtered_feature_bc_matrix", "PBMCs", c("condition1", "condition2"), mito_genes_ids, ribo_genes_ids)
 
-make_seurat <- function(cellranger_path, project_id, hto_names, mito_ids, ribo_ids) {
+make_seurat <- function(cellranger_path, project_id, hto_names = NULL, mito_ids, ribo_ids) {
 
     data10x <- Read10X(cellranger_path, gene.column = 1)
 
     antibody_mtx <- data10x[["Antibody Capture"]] |>
         {function(x) x[!grepl("^Hashtag", rownames(x)), ]}()
 
-    rownames(antibody_mtx) <- sub("_prot$", "", rownames(antibody_mtx))
 
-    hashtags_mtx <- data10x[["Antibody Capture"]] |>
-        {function(x) x[grepl("^Hashtag", rownames(x)), ]}()
+    if (!is.null(hto_names)) { 
 
-    rownames(hashtags_mtx) <- setNames(hto_names[rownames(hashtags_mtx)], NULL)
+	hashtags_mtx <- data10x[["Antibody Capture"]] |>
+	    {function(x) x[grepl("^Hashtag", rownames(x)), ]}()
 
-    bcells <- CreateSeuratObject(counts = data10x[["Gene Expression"]],
-                                 project = project_id)
+	rownames(hashtags_mtx) <- setNames(hto_names[rownames(hashtags_mtx)], NULL)
+    }
 
-    bcells[["ADT"]] <- CreateAssayObject(counts = antibody_mtx)
-    bcells[["HTO"]] <- CreateAssayObject(counts = hashtags_mtx)
+    seuratobj <- 
+	CreateSeuratObject(counts = data10x[["Gene Expression"]], project = project_id) |>
+        NormalizeData(assay = "RNA", normalization.method = "LogNormalize", margin = 1)
 
-    bcells <- bcells |>
-        NormalizeData(normalization.method = "LogNormalize", margin = 1) |>
-        NormalizeData(assay = "HTO", normalization.method = "CLR", margin = 2) |>
-        NormalizeData(assay = "ADT", normalization.method = "CLR", margin = 2)
+    if ( nrow(antibody_mtx) > 0 ) {
+	
+	rownames(antibody_mtx) <- sub("_prot$", "", rownames(antibody_mtx))
+	
+	seuratobj[["ADT"]] <- CreateAssayObject(counts = antibody_mtx)
+    
+	seuratobj <- NormalizeData(seuratobj, assay = "ADT", normalization.method = "CLR", margin = 2)
+    }
+    
+    if (!is.null(hto_names)) {
+	
+	seuratobj[["HTO"]] <- CreateAssayObject(counts = hashtags_mtx)
 
-    bcells[["percent_mt"]] <- PercentageFeatureSet(bcells, features = mito_ids)
-    bcells[["percent_ribo"]] <- PercentageFeatureSet(bcells, features = ribo_ids)
+	seuratobj <- NormalizeData(seuratobj, assay = "HTO", normalization.method = "CLR", margin = 2)
+    }
 
-    bcells
+    seuratobj[["percent_mt"]] <- PercentageFeatureSet(seuratobj, features = mito_ids)
+    seuratobj[["percent_ribo"]] <- PercentageFeatureSet(seuratobj, features = ribo_ids)
+
+    seuratobj
 }

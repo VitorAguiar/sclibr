@@ -4,7 +4,7 @@
 \alias{make_seurat}
 \title{Make Seurat object}
 \usage{
-make_seurat(cellranger_path, project_id, hto_names, mito_ids, ribo_ids)
+make_seurat(cellranger_path, project_id, hto_names = NULL, mito_ids, ribo_ids)
 }
 \arguments{
 \item{cellranger_path}{Path to the CellRanger filtered feature matrix directory.}
