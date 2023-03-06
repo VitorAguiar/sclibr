@@ -31,7 +31,7 @@ make_seurat <- function(cellranger_path, project_id, hto_names = NULL, mito_ids,
 
     seuratobj <- 
 	CreateSeuratObject(counts = data10x[["Gene Expression"]], project = project_id) |>
-        NormalizeData(assay = "RNA", normalization.method = "LogNormalize", margin = 1)
+        NormalizeData(assay = "RNA", normalization.method = "LogNormalize")
 
     if ( nrow(antibody_mtx) > 0 ) {
 	
